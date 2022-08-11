@@ -7,6 +7,14 @@ from typing import List, Tuple
 
 import pyxel
 
+DEBUG_TIMINGS = False
+DEBUG_LIFE_AND_DEATH = False
+
+REPRODUCTION_MIN_AGE = 100
+
+SCREEN_SIZE_X = 80
+SCREEN_SIZE_Y = 80
+
 COST_OF_REPRODUCTION: float = 0.3
 MAX_AGE: int = 1000
 MIN_CREATURE_STARVATION_WILL_ACCEPT_FOOD: float = 0.3
@@ -55,22 +63,22 @@ class App:
             for _ in range(20):
                 creature = Creature(
                     specie,
-                    x=float(random.randint(0, 119)),
-                    y=float(random.randint(0, 119)),
-                    direction=float(random.randint(0, 360)),
+                    x=float(random.randint(0, SCREEN_SIZE_X - 1)),
+                    y=float(random.randint(0, SCREEN_SIZE_Y - 1)),
+                    direction=float(random.randint(0, 360 - 1)),
                 )
                 self.creatures.append(creature)
         self.foods: List[Tuple[int, int]] = []
         for _ in range(200):
             self.spawn_food()
 
-        pyxel.init(120, 120, title="The Real Game of Life", quit_key=pyxel.KEY_Q)
+        pyxel.init(SCREEN_SIZE_X, SCREEN_SIZE_Y, title="The Real Game of Life", quit_key=pyxel.KEY_Q)
         pyxel.run(self.update, self.draw)
 
     def spawn_food(self):
-        new_food: Tuple[int, int] = random.randint(0, 119), random.randint(0, 119)
+        new_food: Tuple[int, int] = random.randint(0, SCREEN_SIZE_X - 1), random.randint(0, SCREEN_SIZE_Y - 1)
         while new_food in self.foods:
-            new_food: Tuple[int, int] = random.randint(0, 119), random.randint(0, 119)
+            new_food: Tuple[int, int] = random.randint(0, SCREEN_SIZE_X - 1), random.randint(0, SCREEN_SIZE_Y - 1)
         self.foods.append(new_food)
 
     def update_creature(self, creature: Creature):
@@ -83,8 +91,8 @@ class App:
         creature.y += math.sin(creature.direction) * creature.specie.speed
         creature.x = max(creature.x, 0)
         creature.y = max(creature.y, 0)
-        creature.x = min(creature.x, 119)
-        creature.y = min(creature.y, 119)
+        creature.x = min(creature.x, SCREEN_SIZE_X - 1)
+        creature.y = min(creature.y, SCREEN_SIZE_Y - 1)
 
         # Food.
         creature.starvation += creature.specie.speed / 300
@@ -99,7 +107,7 @@ class App:
         creature.age += 1
 
     def can_reproduce(self, creature: Creature) -> bool:
-        return creature.starvation + COST_OF_REPRODUCTION < 1 and creature.age > 100
+        return creature.starvation + COST_OF_REPRODUCTION < 1 and creature.age > REPRODUCTION_MIN_AGE
 
     def update(self):
         start = datetime.datetime.now()
@@ -108,7 +116,8 @@ class App:
             self.update_creature(creature)
             if creature.starvation == 1 or creature.age >= MAX_AGE:
                 dead_creatures.append(creature)
-                print(f"Dead because starvation: {creature.starvation == 1}, age: {creature.age >= MAX_AGE}")
+                if DEBUG_LIFE_AND_DEATH:
+                    print(f"Dead because starvation: {creature.starvation == 1}, age: {creature.age >= MAX_AGE}")
         for dead_creature in dead_creatures:
             self.creatures.remove(dead_creature)
 
@@ -129,18 +138,20 @@ class App:
                         x=creature.x,
                         y=creature.y,
                         direction=float(random.randint(0, 360)),
-                        starvation=0.5,
+                        starvation=COST_OF_REPRODUCTION * 2,
                     )
                     new_creatures.append(new_creature)
                     creature.starvation += COST_OF_REPRODUCTION
                     other_creature.starvation += COST_OF_REPRODUCTION
         self.creatures += new_creatures
-        if new_creatures:
+
+        if DEBUG_LIFE_AND_DEATH and new_creatures:
             print(f"new creatures: {len(new_creatures)}")
 
         if random.randint(0, 99) > 0:
             self.spawn_food()
-        print(f"update elapsed: {datetime.datetime.now() - start}")
+        if DEBUG_TIMINGS:
+            print(f"update elapsed: {datetime.datetime.now() - start}")
 
     def draw(self):
         start = datetime.datetime.now()
@@ -156,8 +167,8 @@ class App:
         # Draw food.
         for food in self.foods:
             pyxel.rect(food[0], food[1], 1, 1, pyxel.COLOR_WHITE)
-
-        print(f"draw elapsed: {datetime.datetime.now() - start}")
+        if DEBUG_TIMINGS:
+            print(f"draw elapsed: {datetime.datetime.now() - start}")
 
 
 App()
